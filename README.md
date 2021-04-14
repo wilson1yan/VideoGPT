@@ -1,0 +1,114 @@
+# VideoGPT: Generative Pretraining of Videos from Pixels
+
+[[Paper]](TODO)[[Colab]](https://colab.research.google.com/github/wilson1yan/VideoGPT/blob/master/notebooks/Using_VideoGPT.ipynb)
+
+We present VideoGPT: a conceptually simple architecture for scaling likelihood based generative modeling to natural videos. VideoGPT uses VQ-VAE that learns downsampled discrete latent representations of a raw video by employing 3D convolutions and axial self-attention. A simple GPT-like architecture is then used to autoregressively model the discrete latents using spatio-temporal position encodings. Despite the simplicity in formulation and ease of training, our architecture is able to generate samples competitive with state-of-the-art GAN models for video generation on the BAIR Robot dataset, and generate high fidelity natural images from UCF-101 and Tumbler GIF Dataset (TGIF). We hope our proposed architecture serves as a reproducible reference for a minimalistic implementation of transformer based video generation models. Samples for inspection are available [here](https://sites.google.com/view/videogpt).
+
+
+## Approach
+![VideoGPT](VideoGPT.png)
+
+## Installation
+Change the `cudatoolkit` version compatible to your machine.
+```bash
+$ conda install --yes -c pytorch pytorch=1.7.1 torchvision cudatoolkit=11.0
+$ pip install git+https://github.com/wilson1yan/VideoGPT.git
+```
+
+## Using Pretrained VQ-VAEs
+There are four available pre-trained VQ-VAE models. All strides listed with each model are downsampling amounts across THW for the encoders.
+* `bair_stride4x2x2`: trained on 16 frame 64 x 64 videos from the BAIR Robot Pushing dataset
+* `ucf101_stride4x4x4`: trained on 16 frame 128 x 128 videos from UCF-101
+* `kinetics_stride4x4x4`: trained on 16 frame 128 x 128 videos from Kinetics-600
+* `kinetics_stride2x4x4`: trained on 16 frame 128 x 128 videos from Kinetics-600, with 2x larger temporal latent codes (achieves slightly better reconstruction)
+```python
+from torchvision.io import read_video
+from videogpt import load_vqvae
+from videogpt.data import preprocess
+
+video_filename = 'path/to/video_file.mp4'
+sequence_length = 16
+resolution = 128
+device = torch.device('cuda')
+
+vqvae = load_vqvae('kinetics_stride2x4x4')
+video = read_video(video_filename, pts_unit='sec')[0][:16]
+video = preprocess(video, resolution, sequence_length).unsqueeze(0).to(device)
+
+encodings = vqvae.encode(video)
+video_recon = vqvae.decode(encodings)
+```
+
+
+## Training VQ-VAE
+Use the `scripts/train_vqvae.py` script to train a VQ-VAE. Execute `python scripts/train_vqvae.py -h` for information on all available training settings. A subset of more relevant settings are listed below, along with default values.
+### VQ-VAE Specific Settings
+* `--embedding_dim`: number of dimensions for codebooks embeddings
+* `--n_codes 2048`: number of codes in the codebook
+* `--n_hiddens 240`: number of hidden features in the residual blocks
+* `--n_res_layers 4`: number of residual blocks
+* `--downsample 4 2 2`: T H W downsampling stride of the encoder
+
+### Training Settings
+* `--gpus 2`: number of gpus for distributed training
+* `--sync_batchnorm`: uses `SyncBatchNorm` instead of `BatchNorm3d` when using > 1 gpu
+* `--gradient_clip_val 1`: gradient clipping threshold for training
+* `--batch_size 16`: batch size per gpu
+* `--num_workers 8`: number of workers for each DataLoader
+
+### Dataset Settings
+* `--data_path <path>`: path to an `hdf5` file or a folder containing `train` and `test` folders with subdirectories of videos
+```
+video_dataset/
+    train/
+        class_0/
+            video1.mp4
+            video2.mp4
+            ...
+        class_1/
+            video1.mp4
+            ...
+        ...
+        class_n/
+            ...
+    test/
+        class_0/
+            video1.mp4
+            video2.mp4
+            ...
+        class_1/
+            video1.mp4
+            ...
+        ...
+        class_n/
+            ...
+```
+If you do not care about classes, the class folders are not necessary and the dataset file structure can be collapsed into `train` and `test` directories of just videos.
+* `--resolution 128`: spatial resolution to train on 
+* `--sequence_length 16`: temporal resolution, or video clip length
+
+## Training VideoGPT
+You can download a pretrained VQ-VAE, or train your own. Afterwards, use the `scripts/train_videogpt.py` script to train an VideoGPT model for sampling. Execute `python scripts/train_videogpt.py -h` for information on all available training settings. A subset of more relevant settings are listed below, along with default values.
+### VideoGPT Specific Settings
+* `--vqvae kinetics_stride4x4x4`: path to a vqvae checkpoint file, OR a pretrained model name to download. Available pretrained models are: `bair_stride4x2x2`, `ucf101_stride4x4x4`, `kinetics_stride4x4x4`, `kinetics_stride2x4x4`. BAIR was trained on 64 x 64 videos, and the rest on 128 x 128 videos
+* `--n_cond_frames 0`: number of frames to condition on. `0` represents a non-frame conditioned model
+* `--class_cond`: trains a class conditional model if activated
+* `--hidden_dim 576`: number of transformer hidden features
+* `--heads 4`: number of heads for multihead attention
+* `--layers 8`: number of transformer layers
+* `--dropout 0.2'`: dropout probability applied to features after attention and positionwise feedforward layers
+* `--attn_dropout 0.3`: dropout probability applied to the attention weight matrix
+### Training Settings
+* `--gpus 2`: number of gpus for distributed training
+* `--sync_batchnorm`: uses `SyncBatchNorm` instead of `BatchNorm3d` when using > 1 gpu
+* `--gradient_clip_val 1`: gradient clipping threshold for training
+* `--batch_size 16`: batch size per gpu
+* `--num_workers 8`: number of workers for each DataLoader
+
+### Dataset Settings
+* `--data_path <path>`: path to an `hdf5` file or a folder containing `train` and `test` folders with subdirectories of videos
+* `--resolution 128`: spatial resolution to train on 
+* `--sequence_length 16`: temporal resolution, or video clip length
+
+### Reproducing Paper Results
+Note that this repo is primarily designed for simplicity and extending off of our method. Reproducing the full paper results can be done using code found at a [separate repo](https://github.com/wilson1yan/VideoGPT-Paper). However, be aware that the code is not as clean.
