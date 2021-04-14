@@ -1,4 +1,4 @@
-# VideoGPT: Generative Pretraining of Videos from Pixels
+# VideoGPT: Video Generation using VQ-VAE and Transformers
 
 [[Paper]](TODO)[[Colab]](https://colab.research.google.com/github/wilson1yan/VideoGPT/blob/master/notebooks/Using_VideoGPT.ipynb)
 
