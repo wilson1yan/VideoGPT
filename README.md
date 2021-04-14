@@ -15,7 +15,7 @@ $ conda install --yes -c pytorch pytorch=1.7.1 torchvision cudatoolkit=11.0
 $ pip install git+https://github.com/wilson1yan/VideoGPT.git
 ```
 
-### Sparse Attention
+### Sparse Attention (Optional)
 For limit compute scenarios, it may be beneficial to use [sparse attention](https://arxiv.org/abs/1904.10509).
 ```bash
 $ sudo apt-get install llvm-9-dev
@@ -105,6 +105,7 @@ You can download a pretrained VQ-VAE, or train your own. Afterwards, use the `sc
 * `--heads 4`: number of heads for multihead attention
 * `--layers 8`: number of transformer layers
 * `--dropout 0.2'`: dropout probability applied to features after attention and positionwise feedforward layers
+* `--attn_type full`: `full` or `sparse` attention. Refer to the Installation section for install sparse attention
 * `--attn_dropout 0.3`: dropout probability applied to the attention weight matrix
 ### Training Settings
 * `--gpus 2`: number of gpus for distributed training
