@@ -11,7 +11,7 @@ from .utils import shift_dim, view_range, tensor_slice
 class AttentionStack(nn.Module):
     def __init__(
         self, shape, embd_dim, n_head, n_layer, dropout,
-        attn_dropout, class_cond_dim, frame_cond_shape
+        attn_type, attn_dropout, class_cond_dim, frame_cond_shape,
     ):
         super().__init__()
         self.shape = shape
@@ -30,6 +30,7 @@ class AttentionStack(nn.Module):
                     n_head=n_head,
                     n_layer=n_layer,
                     dropout=dropout,
+                    attn_type=attn_type,
                     attn_dropout=attn_dropout,
                     class_cond_dim=class_cond_dim,
                     frame_cond_shape=frame_cond_shape
@@ -59,14 +60,14 @@ class AttentionStack(nn.Module):
 
 class AttentionBlock(nn.Module):
     def __init__(self, shape, embd_dim, n_head, n_layer, dropout,
-                 attn_dropout, class_cond_dim, frame_cond_shape):
+                 attn_type, attn_dropout, class_cond_dim, frame_cond_shape):
         super().__init__()
         self.use_frame_cond = frame_cond_shape is not None
 
         self.pre_attn_norm = LayerNorm(embd_dim, class_cond_dim)
         self.post_attn_dp = nn.Dropout(dropout)
         self.attn = MultiHeadAttention(shape, embd_dim, embd_dim, n_head,
-                                       n_layer, causal=True, attn_type='full',
+                                       n_layer, causal=True, attn_type=attn_type,
                                        attn_kwargs=dict(attn_dropout=attn_dropout))
 
         if frame_cond_shape is not None:
@@ -96,13 +97,20 @@ class AttentionBlock(nn.Module):
 
         if self.use_frame_cond:
             h = self.pre_enc_norm(x, cond)
-            h = self.enc_attn(h, cond['frame_cond'], cond['frame_cond'],
-                              decode_step, decode_idx)
+            if self.training:
+                h = checkpoint(self.enc_attn, h, cond['frame_cond'], cond['frame_cond'],
+                               decode_step, decode_idx)
+            else:
+                h = self.enc_attn(h, cond['frame_cond'], cond['frame_cond'],
+                                  decode_step, decode_idx)
             h = self.post_enc_dp(h)
             x = x + h
 
         h = self.pre_fc_norm(x, cond)
-        h = self.fc_block(h)
+        if self.training:
+            h = checkpoint(self.fc_block, h)
+        else:
+            h = self.fc_block(h)
         h = self.post_fc_dp(h)
         x = x + h
 
@@ -139,10 +147,10 @@ class MultiHeadAttention(nn.Module):
             self.attn = AxialAttention(len(shape), **attn_kwargs)
         elif attn_type == 'sparse':
             try:
-                import triton
+                from deepspeed.ops.sparse_attention import MatMul, Softmax
             except:
-                print('Error importing triton. Please install using `pip install triton`')
-            self.attn = SparseAttention(shape, causal, **attn_kwargs)
+                raise Exception('Error importing deepspeed. Please install using `DS_BUILD_SPARSE_ATTN=1 pip install deepspeed`')
+            self.attn = SparseAttention(shape, n_head, causal, **attn_kwargs)
 
         self.cache = None
 
@@ -264,22 +272,22 @@ class SparseAttention(nn.Module):
             SparseAttention.attn_mask[self.shape] = self.sparsity_config.make_sparse_attn_mask()
 
     def get_ops(self):
-        from triton.ops.blocksparse import matmul, softmax
+        from deepspeed.ops.sparse_attention import MatMul, Softmax
         if self.shape not in SparseAttention.ops:
             sparsity_layout = self.sparsity_config.make_layout()
-            sparse_dot_sdd_nt = matmul(sparsity_layout,
+            sparse_dot_sdd_nt = MatMul(sparsity_layout,
                                        self.sparsity_config.block,
                                        'sdd',
                                        trans_a=False,
                                        trans_b=True)
 
-            sparse_dot_dsd_nn = matmul(sparsity_layout,
+            sparse_dot_dsd_nn = MatMul(sparsity_layout,
                                        self.sparsity_config.block,
                                        'dsd',
                                        trans_a=False,
                                        trans_b=False)
 
-            sparse_softmax = softmax(sparsity_layout, self.sparsity_config.block)
+            sparse_softmax = Softmax(sparsity_layout, self.sparsity_config.block)
 
             SparseAttention.ops[self.shape] = (sparse_dot_sdd_nt,
                                                sparse_dot_dsd_nn,
@@ -287,13 +295,10 @@ class SparseAttention(nn.Module):
         return SparseAttention.ops[self.shape]
 
     def forward(self, q, k, v, decode_step, decode_idx):
-        SparseAttention.block_layout[self.seq_len] = SparseAttention.block_layout[self.seq_len].to(q)
+        SparseAttention.block_layout[self.shape] = SparseAttention.block_layout[self.shape].to(q)
         if self.causal:
             SparseAttention.attn_mask[self.shape] = SparseAttention.attn_mask[self.shape].to(q).type_as(q)
         attn_mask = SparseAttention.attn_mask[self.shape] if self.causal else None
-
-        if q.shape != k.shape or k.shape != v.shape:
-            raise Exception('SparseAttention only support self-attention')
 
         old_shape = q.shape[2:-1]
         q = q.flatten(start_dim=2, end_dim=-2)
@@ -301,9 +306,11 @@ class SparseAttention(nn.Module):
         v = v.flatten(start_dim=2, end_dim=-2)
 
         if decode_step is not None:
-            mask = self.sparsity_config.get_non_block_layout_row(SparseAttention.block_layout[self.seq_len], decode_step)
+            mask = self.sparsity_config.get_non_block_layout_row(SparseAttention.block_layout[self.shape], decode_step)
             out = scaled_dot_product_attention(q, k, v, mask=mask, training=self.training)
         else:
+            if q.shape != k.shape or k.shape != v.shape:
+                raise Exception('SparseAttention only support self-attention')
             sparse_dot_sdd_nt, sparse_dot_dsd_nn, sparse_softmax = self.get_ops()
             scaling = float(q.shape[-1]) ** -0.5
 

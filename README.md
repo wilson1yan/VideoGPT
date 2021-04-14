@@ -15,6 +15,14 @@ $ conda install --yes -c pytorch pytorch=1.7.1 torchvision cudatoolkit=11.0
 $ pip install git+https://github.com/wilson1yan/VideoGPT.git
 ```
 
+### Sparse Attention
+For limit compute scenarios, it may be beneficial to use [sparse attention](https://arxiv.org/abs/1904.10509).
+```bash
+$ sudo apt-get install llvm-9-dev
+$ DS_BUILD_SPARSE_ATTN=1 pip install deepspeed
+```
+After installng `deepspeed`, you can train a sparse transformer by setting the flag `--attn_type sparse` in `scripts/train_videogpt.py`. The default support sparsity configuration is an N-d strided sparsity layout, however, you can write your own arbitrary layouts to use.
+
 ## Using Pretrained VQ-VAEs
 There are four available pre-trained VQ-VAE models. All strides listed with each model are downsampling amounts across THW for the encoders.
 * `bair_stride4x2x2`: trained on 16 frame 64 x 64 videos from the BAIR Robot Pushing dataset
@@ -110,5 +118,8 @@ You can download a pretrained VQ-VAE, or train your own. Afterwards, use the `sc
 * `--resolution 128`: spatial resolution to train on 
 * `--sequence_length 16`: temporal resolution, or video clip length
 
-### Reproducing Paper Results
+## Sampling VideoGPT
+After training, the VideoGPT model can be sampled using the `scripts/sample_videogpt.py`.
+
+## Reproducing Paper Results
 Note that this repo is primarily designed for simplicity and extending off of our method. Reproducing the full paper results can be done using code found at a [separate repo](https://github.com/wilson1yan/VideoGPT-Paper). However, be aware that the code is not as clean.

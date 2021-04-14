@@ -52,7 +52,7 @@ class VideoGPT(pl.LightningModule):
 
         self.attn_stack = AttentionStack(
             self.shape, args.hidden_dim, args.heads, args.layers, args.dropout,
-            args.attn_dropout, args.class_cond_dim, frame_cond_shape
+            args.attn_type, args.attn_dropout, args.class_cond_dim, frame_cond_shape
         )
 
         self.norm = LayerNorm(args.hidden_dim, args.class_cond_dim)
@@ -169,6 +169,8 @@ class VideoGPT(pl.LightningModule):
         parser.add_argument('--heads', type=int, default=4)
         parser.add_argument('--layers', type=int, default=8)
         parser.add_argument('--dropout', type=float, default=0.2)
+        parser.add_argument('--attn_type', type=str, default='full',
+                            choices=['full', 'sparse'])
         parser.add_argument('--attn_dropout', type=float, default=0.3)
 
         return parser
