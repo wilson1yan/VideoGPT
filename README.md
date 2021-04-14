@@ -119,7 +119,7 @@ You can download a pretrained VQ-VAE, or train your own. Afterwards, use the `sc
 * `--sequence_length 16`: temporal resolution, or video clip length
 
 ## Sampling VideoGPT
-After training, the VideoGPT model can be sampled using the `scripts/sample_videogpt.py`.
+After training, the VideoGPT model can be sampled using the `scripts/sample_videogpt.py`. You may need to install `ffmpeg`: `sudo apt-get install ffmpeg`
 
 ## Reproducing Paper Results
 Note that this repo is primarily designed for simplicity and extending off of our method. Reproducing the full paper results can be done using code found at a [separate repo](https://github.com/wilson1yan/VideoGPT-Paper). However, be aware that the code is not as clean.
