@@ -23,49 +23,8 @@ $ DS_BUILD_SPARSE_ATTN=1 pip install deepspeed
 ```
 After installng `deepspeed`, you can train a sparse transformer by setting the flag `--attn_type sparse` in `scripts/train_videogpt.py`. The default support sparsity configuration is an N-d strided sparsity layout, however, you can write your own arbitrary layouts to use.
 
-## Using Pretrained VQ-VAEs
-There are four available pre-trained VQ-VAE models. All strides listed with each model are downsampling amounts across THW for the encoders.
-* `bair_stride4x2x2`: trained on 16 frame 64 x 64 videos from the BAIR Robot Pushing dataset
-* `ucf101_stride4x4x4`: trained on 16 frame 128 x 128 videos from UCF-101
-* `kinetics_stride4x4x4`: trained on 16 frame 128 x 128 videos from Kinetics-600
-* `kinetics_stride2x4x4`: trained on 16 frame 128 x 128 videos from Kinetics-600, with 2x larger temporal latent codes (achieves slightly better reconstruction)
-```python
-from torchvision.io import read_video
-from videogpt import load_vqvae
-from videogpt.data import preprocess
-
-video_filename = 'path/to/video_file.mp4'
-sequence_length = 16
-resolution = 128
-device = torch.device('cuda')
-
-vqvae = load_vqvae('kinetics_stride2x4x4')
-video = read_video(video_filename, pts_unit='sec')[0]
-video = preprocess(video, resolution, sequence_length).unsqueeze(0).to(device)
-
-encodings = vqvae.encode(video)
-video_recon = vqvae.decode(encodings)
-```
-
-
-## Training VQ-VAE
-Use the `scripts/train_vqvae.py` script to train a VQ-VAE. Execute `python scripts/train_vqvae.py -h` for information on all available training settings. A subset of more relevant settings are listed below, along with default values.
-### VQ-VAE Specific Settings
-* `--embedding_dim`: number of dimensions for codebooks embeddings
-* `--n_codes 2048`: number of codes in the codebook
-* `--n_hiddens 240`: number of hidden features in the residual blocks
-* `--n_res_layers 4`: number of residual blocks
-* `--downsample 4 2 2`: T H W downsampling stride of the encoder
-
-### Training Settings
-* `--gpus 2`: number of gpus for distributed training
-* `--sync_batchnorm`: uses `SyncBatchNorm` instead of `BatchNorm3d` when using > 1 gpu
-* `--gradient_clip_val 1`: gradient clipping threshold for training
-* `--batch_size 16`: batch size per gpu
-* `--num_workers 8`: number of workers for each DataLoader
-
-### Dataset Settings
-* `--data_path <path>`: path to an `hdf5` file or a folder containing `train` and `test` folders with subdirectories of videos
+## Dataset
+The default code accepts data as an HDF5 file with the specified format in `videogpt/data.py`, and a directory format with the follow structure:
 ```
 video_dataset/
     train/
@@ -91,7 +50,52 @@ video_dataset/
         class_n/
             ...
 ```
+An example of such a dataset can be constructed from [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) data by running the script `sh scripts/preprocess/create_ucf_dataset.sh datasets/ucf101`. You may need to install `unrar` and `unzip` for the code to work correctly.
+
 If you do not care about classes, the class folders are not necessary and the dataset file structure can be collapsed into `train` and `test` directories of just videos.
+
+## Using Pretrained VQ-VAEs
+There are four available pre-trained VQ-VAE models. All strides listed with each model are downsampling amounts across THW for the encoders.
+* `bair_stride4x2x2`: trained on 16 frame 64 x 64 videos from the BAIR Robot Pushing dataset
+* `ucf101_stride4x4x4`: trained on 16 frame 128 x 128 videos from UCF-101
+* `kinetics_stride4x4x4`: trained on 16 frame 128 x 128 videos from Kinetics-600
+* `kinetics_stride2x4x4`: trained on 16 frame 128 x 128 videos from Kinetics-600, with 2x larger temporal latent codes (achieves slightly better reconstruction)
+```python
+from torchvision.io import read_video
+from videogpt import load_vqvae
+from videogpt.data import preprocess
+
+video_filename = 'path/to/video_file.mp4'
+sequence_length = 16
+resolution = 128
+device = torch.device('cuda')
+
+vqvae = load_vqvae('kinetics_stride2x4x4')
+video = read_video(video_filename, pts_unit='sec')[0]
+video = preprocess(video, resolution, sequence_length).unsqueeze(0).to(device)
+
+encodings = vqvae.encode(video)
+video_recon = vqvae.decode(encodings)
+```
+
+## Training VQ-VAE
+Use the `scripts/train_vqvae.py` script to train a VQ-VAE. Execute `python scripts/train_vqvae.py -h` for information on all available training settings. A subset of more relevant settings are listed below, along with default values.
+### VQ-VAE Specific Settings
+* `--embedding_dim`: number of dimensions for codebooks embeddings
+* `--n_codes 2048`: number of codes in the codebook
+* `--n_hiddens 240`: number of hidden features in the residual blocks
+* `--n_res_layers 4`: number of residual blocks
+* `--downsample 4 2 2`: T H W downsampling stride of the encoder
+
+### Training Settings
+* `--gpus 2`: number of gpus for distributed training
+* `--sync_batchnorm`: uses `SyncBatchNorm` instead of `BatchNorm3d` when using > 1 gpu
+* `--gradient_clip_val 1`: gradient clipping threshold for training
+* `--batch_size 16`: batch size per gpu
+* `--num_workers 8`: number of workers for each DataLoader
+
+### Dataset Settings
+* `--data_path <path>`: path to an `hdf5` file or a folder containing `train` and `test` folders with subdirectories of videos
 * `--resolution 128`: spatial resolution to train on 
 * `--sequence_length 16`: temporal resolution, or video clip length
 
