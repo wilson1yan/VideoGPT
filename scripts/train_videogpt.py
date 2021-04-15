@@ -18,7 +18,9 @@ def main():
     args = parser.parse_args()
 
     data = VideoData(args)
-    data.train_dataloader() # pre-make relevant cached files if necessary
+    # pre-make relevant cached files if necessary
+    data.train_dataloader()
+    data.test_dataloader()
 
     args.class_cond_dim = data.n_classes if args.class_cond else None
     model = VideoGPT(args)
