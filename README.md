@@ -40,7 +40,7 @@ resolution = 128
 device = torch.device('cuda')
 
 vqvae = load_vqvae('kinetics_stride2x4x4')
-video = read_video(video_filename, pts_unit='sec')[0][:16]
+video = read_video(video_filename, pts_unit='sec')[0]
 video = preprocess(video, resolution, sequence_length).unsqueeze(0).to(device)
 
 encodings = vqvae.encode(video)
