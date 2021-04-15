@@ -1,5 +1,6 @@
-__pycache__
+__pycache__/
 lightning_logs/
-pretrained/
-*.egg-info
+datasets/
 .ipynb_checkpoints/
+*.mp4
+*.egg-info
