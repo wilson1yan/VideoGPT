@@ -18,6 +18,7 @@ def main():
     args = parser.parse_args()
 
     data = VideoData(args)
+    data.train_dataloader() # pre-make relevant cached files if necessary
     model = VQVAE(args)
 
     callbacks = []
