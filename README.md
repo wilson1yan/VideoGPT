@@ -50,7 +50,11 @@ video_dataset/
         class_n/
             ...
 ```
-An example of such a dataset can be constructed from [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) data by running the script `sh scripts/preprocess/create_ucf_dataset.sh datasets/ucf101`. You may need to install `unrar` and `unzip` for the code to work correctly.
+An example of such a dataset can be constructed from [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) data by running the script 
+```bash
+sh scripts/preprocess/create_ucf_dataset.sh datasets/ucf101
+``` 
+You may need to install `unrar` and `unzip` for the code to work correctly.
 
 If you do not care about classes, the class folders are not necessary and the dataset file structure can be collapsed into `train` and `test` directories of just videos.
 
