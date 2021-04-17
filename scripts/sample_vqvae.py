@@ -7,7 +7,7 @@ from videogpt.utils import save_video_grid
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckpt', type=str, default=True)
-parser.add_argument('--n', type=int, default=64)
+parser.add_argument('--n', type=int, default=8)
 args = parser.parse_args()
 n = args.n
 
