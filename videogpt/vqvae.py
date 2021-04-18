@@ -79,7 +79,7 @@ class VQVAE(pl.LightningModule):
         parser.add_argument('--n_codes', type=int, default=2048)
         parser.add_argument('--n_hiddens', type=int, default=240)
         parser.add_argument('--n_res_layers', type=int, default=4)
-        parser.add_argument('--downsample', nargs='+', type=int, default=(4, 2, 2))
+        parser.add_argument('--downsample', nargs='+', type=int, default=(4, 4, 4))
         return parser
 
 

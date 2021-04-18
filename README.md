@@ -89,7 +89,7 @@ Use the `scripts/train_vqvae.py` script to train a VQ-VAE. Execute `python scrip
 * `--n_codes 2048`: number of codes in the codebook
 * `--n_hiddens 240`: number of hidden features in the residual blocks
 * `--n_res_layers 4`: number of residual blocks
-* `--downsample 4 2 2`: T H W downsampling stride of the encoder
+* `--downsample 4 4 4`: T H W downsampling stride of the encoder
 
 ### Training Settings
 * `--gpus 2`: number of gpus for distributed training
