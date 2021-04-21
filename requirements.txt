@@ -8,3 +8,5 @@ pytorch_lightning
 scikit-video
 av
 gradio
+moviepy
+imageio
