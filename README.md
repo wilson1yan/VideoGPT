@@ -1,6 +1,6 @@
 # VideoGPT: Video Generation using VQ-VAE and Transformers
 
-[[Paper]](TODO)[[Colab]](https://colab.research.google.com/github/wilson1yan/VideoGPT/blob/master/notebooks/Using_VideoGPT.ipynb)
+[[Paper]](https://arxiv.org/abs/2104.10157)[[Colab]](https://colab.research.google.com/github/wilson1yan/VideoGPT/blob/master/notebooks/Using_VideoGPT.ipynb)
 
 We present VideoGPT: a conceptually simple architecture for scaling likelihood based generative modeling to natural videos. VideoGPT uses VQ-VAE that learns downsampled discrete latent representations of a raw video by employing 3D convolutions and axial self-attention. A simple GPT-like architecture is then used to autoregressively model the discrete latents using spatio-temporal position encodings. Despite the simplicity in formulation and ease of training, our architecture is able to generate samples competitive with state-of-the-art GAN models for video generation on the BAIR Robot dataset, and generate high fidelity natural images from UCF-101 and Tumbler GIF Dataset (TGIF). We hope our proposed architecture serves as a reproducible reference for a minimalistic implementation of transformer based video generation models. Samples for inspection are available [here](https://sites.google.com/view/videogpt).
 
@@ -132,3 +132,16 @@ After training, the VideoGPT model can be sampled using the `scripts/sample_vide
 
 ## Reproducing Paper Results
 Note that this repo is primarily designed for simplicity and extending off of our method. Reproducing the full paper results can be done using code found at a [separate repo](https://github.com/wilson1yan/VideoGPT-Paper). However, be aware that the code is not as clean.
+
+## Citation
+Please consider using the follow citation when using our code:
+```
+@misc{yan2021videogpt,
+      title={VideoGPT: Video Generation using VQ-VAE and Transformers}, 
+      author={Wilson Yan and Yunzhi Zhang and Pieter Abbeel and Aravind Srinivas},
+      year={2021},
+      eprint={2104.10157},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+}
+```
