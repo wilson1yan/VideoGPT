@@ -7,3 +7,6 @@ torchtext~=0.8.1
 pytorch_lightning
 scikit-video
 av
+gradio
+moviepy
+imageio
