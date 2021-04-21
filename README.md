@@ -16,7 +16,7 @@ $ pip install git+https://github.com/wilson1yan/VideoGPT.git
 ```
 
 ### Sparse Attention (Optional)
-For limit compute scenarios, it may be beneficial to use [sparse attention](https://arxiv.org/abs/1904.10509).
+For limited compute scenarios, it may be beneficial to use [sparse attention](https://arxiv.org/abs/1904.10509).
 ```bash
 $ sudo apt-get install llvm-9-dev
 $ DS_BUILD_SPARSE_ATTN=1 pip install deepspeed
