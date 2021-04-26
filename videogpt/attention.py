@@ -43,7 +43,7 @@ class AttentionStack(nn.Module):
         """
         Args
         ------
-            x: (b, d1, d2, ..., dn, embd_dim), where dn-2 = height, dn-1 = width, dn = n_codebooks. n = 4 => (b, t, h, w, l, d) => dim_h = 2, dim_w = 3
+            x: (b, d1, d2, ..., dn, embd_dim)
             cond: a dictionary of conditioning tensors
 
             (below is used only when sampling for fast decoding)
