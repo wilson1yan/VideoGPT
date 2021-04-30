@@ -11,7 +11,7 @@ from moviepy.editor import *
 device = torch.device('cpu')
 vqvae = load_vqvae('kinetics_stride2x4x4', device=device).to(device)
 
-resolution = vqvae.hparams.resolution
+resolution, sequence_length = vqvae.hparams.resolution, 16
 
 def vgpt(invid):
   try:
@@ -20,7 +20,6 @@ def vgpt(invid):
     pass
   clip = VideoFileClip(invid)
   rate = clip.fps
-  sequence_length=int(clip.fps * clip.duration)
   pts = read_video_timestamps(invid, pts_unit='sec')[0]
   video = read_video(invid, pts_unit='sec', start_pts=pts[0], end_pts=pts[sequence_length - 1])[0]
   video = preprocess(video, resolution, sequence_length).unsqueeze(0).to(device)
