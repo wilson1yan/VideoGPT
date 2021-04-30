@@ -1,3 +1,5 @@
+import sys
+sys.path.append("..")
 import os
 import torch
 from torchvision.io import read_video, read_video_timestamps
@@ -42,8 +44,8 @@ description = "demo for VideoGPT by University of California, Berkeley. To use i
 article = "<p style='text-align: center'><a href='https://arxiv.org/abs/2104.10157'>VideoGPT: Video Generation using VQ-VAE and Transformers</a> | <a href='https://github.com/wilson1yan/VideoGPT'>Github Repo</a></p>"
 
 examples = [
-    ['bear.mp4'],
-    ['breakdance.mp4']
+    ['gradio/bear.mp4'],
+    ['gradio/breakdance.mp4']
 ]
 
 gr.Interface(vgpt, inputs, outputs, title=title, description=description, article=article, examples=examples).launch(debug=True)
