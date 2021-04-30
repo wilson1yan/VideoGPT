@@ -1,5 +1,5 @@
 import sys
-sys.path.append("..")
+sys.path.append('../..')
 import os
 import torch
 from torchvision.io import read_video, read_video_timestamps
