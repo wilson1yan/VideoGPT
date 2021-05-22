@@ -21,10 +21,10 @@ For limited compute scenarios, it may be beneficial to use [sparse attention](ht
 $ sudo apt-get install llvm-9-dev
 $ DS_BUILD_SPARSE_ATTN=1 pip install deepspeed
 ```
-After installng `deepspeed`, you can train a sparse transformer by setting the flag `--attn_type sparse` in `scripts/train_videogpt.py`. The default support sparsity configuration is an N-d strided sparsity layout, however, you can write your own arbitrary layouts to use.
+After installng `deepspeed`, you can train a sparse transformer by setting the flag `--attn_type sparse` in `scripts/train_videogpt.py`. The default supported sparsity configuration is an N-d strided sparsity layout, however, you can write your own arbitrary layouts to use.
 
 ## Dataset
-The default code accepts data as an HDF5 file with the specified format in `videogpt/data.py`, and a directory format with the follow structure:
+The default code accepts data as an HDF5 file with the specified format in `videogpt/data.py`, OR a directory format with the follow structure:
 ```
 video_dataset/
     train/
