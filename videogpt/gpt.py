@@ -7,6 +7,7 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim.lr_scheduler as lr_scheduler
 import pytorch_lightning as pl
 
 from .resnet import resnet34
@@ -153,7 +154,9 @@ class VideoGPT(pl.LightningModule):
         self.log('val/loss', loss, prog_bar=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=3e-4, betas=(0.9, 0.999))
+        optimizer = torch.optim.Adam(self.parameters(), lr=3e-4, betas=(0.9, 0.999))
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, self.hparams.max_steps)
+        return [optimizer], [scheduler]
 
 
     @staticmethod
