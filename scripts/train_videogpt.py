@@ -26,7 +26,7 @@ def main():
     model = VideoGPT(args)
 
     callbacks = []
-    callbacks.append(ModelCheckpoint(monitor='val/loss', mode='min'))
+    callbacks.append(ModelCheckpoint(monitor='val/loss', mode='min', save_top_k=-1))
 
     kwargs = dict()
     if args.gpus > 1:

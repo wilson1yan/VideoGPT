@@ -7,6 +7,18 @@ import torch.nn.functional as F
 
 from .utils import shift_dim
 
+class ChannelLayerNorm(nn.Module):
+    # layer norm on channels
+    def __init__(self, in_features):
+        super().__init__()
+        self.norm = nn.LayerNorm(in_features)
+
+    def forward(self, x):
+        x = shift_dim(x, 1, -1)
+        x = self.norm(x)
+        x = shift_dim(x, -1, 1)
+        return x
+
 
 class NormReLU(nn.Module):
 
@@ -14,7 +26,7 @@ class NormReLU(nn.Module):
         super().__init__()
 
         self.relu = relu
-        self.norm = nn.BatchNorm3d(channels)
+        self.norm = ChannelLayerNorm(channels)
 
     def forward(self, x):
         x_float = x.float()

@@ -66,6 +66,9 @@ class VideoGPT(pl.LightningModule):
 
         self.save_hyperparameters()
 
+    def get_reconstruction(self, videos):
+        return self.vqvae.decode(self.vqvae.encode(videos))
+
     def sample(self, n, batch=None):
         device = self.fc_in.weight.device
 

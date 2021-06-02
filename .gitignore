@@ -4,3 +4,4 @@ datasets/
 .ipynb_checkpoints/
 *.mp4
 *.egg-info
+i3d_pretrained_400.pt
