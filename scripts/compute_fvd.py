@@ -7,14 +7,14 @@ import torch
 import torch.multiprocessing as mp
 import torch.distributed as dist
 
-from .fvd import get_fvd_logits, frechet_distance, load_fvd_model
+from videogpt.fvd.fvd import get_fvd_logits, frechet_distance, load_fvd_model
 from videogpt import VideoData, VideoGPT
 
 
 def main():
     assert torch.cuda.is_available()
     ngpus = torch.cuda.device_count()
-    assert FVD_SAMPLE_SIZE % ngpus == 0, f"Must have FVD_SAMPLE_SIZE % n_gpus == 0"
+    assert 256 % ngpus == 0, f"Must have 256 % n_gpus == 0"
 
     mp.spawn(main_worker, nprocs=ngpus, args=(ngpus, args), join=True)
 
@@ -29,12 +29,14 @@ def main_worker(rank, size, args_in):
     torch.cuda.set_device(device)
     torch.set_grad_enabled(False)
 
+    n_trials = args.n_trials
+
     #################### Load VideoGPT ########################################
     gpt = VideoGPT.load_from_checkpoint(args.ckpt).to(device)
     gpt.eval()
     args = gpt.hparams['args']
 
-    args.batch_size =  16
+    args.batch_size =  256
     loader = VideoData(args).test_dataloader()
 
     #################### Load I3D ########################################
@@ -44,9 +46,9 @@ def main_worker(rank, size, args_in):
     fvds = []
     fvds_star = []
     if is_root:
-        pbar = tqdm(total=args.n_trials)
-    for _ in range(args.n_trials):
-        fvd, fvd_star = eval_fvd(i3d, gpt, test_loader, device)
+        pbar = tqdm(total=n_trials)
+    for _ in range(n_trials):
+        fvd, fvd_star = eval_fvd(i3d, gpt, loader, device)
         fvds.append(fvd)
         fvds_star.append(fvd_star)
 
@@ -66,28 +68,36 @@ def main_worker(rank, size, args_in):
 
 def all_gather(tensor):
     rank, size = dist.get_rank(), dist.get_world_size()
-    tensor_list = [None for _ in range(size)]
+    tensor_list = [torch.zeros_like(tensor) for _ in range(size)]
     dist.all_gather(tensor_list, tensor)
     return torch.cat(tensor_list)
 
 
-def eval_fvd(sample_fn, i3d, videogpt, loader, device):
+def eval_fvd(i3d, videogpt, loader, device):
     rank, size = dist.get_rank(), dist.get_world_size()
     is_root = rank == 0
 
     batch = next(iter(loader))
+    batch = {k: v.to(device) for k, v in batch.items()}
 
-    fake = videogpt.sample(16, batch)
-    fake = fake.permute(0, 2, 3, 4, 1).cpu().numpy() # BCTHW -> BTHWC
-    fake = (fake * 255).astype('uint8')
-    fake_embeddings = get_fvd_logits(fake, i3d=i3d, device=device)
+    fake_embeddings = []
+    for i in range(0, batch['video'].shape[0], 16):
+        fake = videogpt.sample(16, {k: v[i:i+16] for k, v in batch.items()})
+        fake = fake.permute(0, 2, 3, 4, 1).cpu().numpy() # BCTHW -> BTHWC
+        fake = (fake * 255).astype('uint8')
+        fake_embeddings.append(get_fvd_logits(fake, i3d=i3d, device=device))
+    fake_embeddings = torch.cat(fake_embeddings)
 
     real = batch['video'].to(device)
-    real_recon = videogpt.get_reconstruction(real).clamp(0, 1)
-    real_recon = real_recon.permute(0, 2, 3, 4, 1).cpu().numpy() # BCTHW -> BTHWC
-    real_recon = (real_recon * 255).astype('uint8')
-    real_recon_embeddings = get_fvd_logits(real_recon, i3d=i3d, device=device)
+    real_recon_embeddings = []
+    for i in range(0, batch['video'].shape[0], 16):
+        real_recon = (videogpt.get_reconstruction(batch['video'][i:i+16]) + 0.5).clamp(0, 1)
+        real_recon = real_recon.permute(0, 2, 3, 4, 1).cpu().numpy()
+        real_recon = (real_recon * 255).astype('uint8')
+        real_recon_embeddings.append(get_fvd_logits(real_recon, i3d=i3d, device=device))
+    real_recon_embeddings = torch.cat(real_recon_embeddings)
 
+    real = real + 0.5
     real = real.permute(0, 2, 3, 4, 1).cpu().numpy() # BCTHW -> BTHWC
     real = (real * 255).astype('uint8')
     real_embeddings = get_fvd_logits(real, i3d=i3d, device=device)
@@ -96,7 +106,7 @@ def eval_fvd(sample_fn, i3d, videogpt, loader, device):
     real_recon_embeddings = all_gather(real_recon_embeddings)
     real_embeddings = all_gather(real_embeddings)
 
-    assert fake_embeddings.shape[0] == real_recon_embeddings.shape[0] == real_embeddings.shape[0] == FVD_SAMPLE_SIZE
+    assert fake_embeddings.shape[0] == real_recon_embeddings.shape[0] == real_embeddings.shape[0] == 256
 
     if is_root:
         fvd = frechet_distance(fake_embeddings.clone(), real_embeddings)
@@ -109,7 +119,7 @@ def eval_fvd(sample_fn, i3d, videogpt, loader, device):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ckpt', type=str, required=True)
-    parser.add_argument('--n', type=int, default=4, help="Number of trials to compute mean/std")
+    parser.add_argument('--n_trials', type=int, default=4, help="Number of trials to compute mean/std")
     parser.add_argument('--port', type=int, default=23452)
     args = parser.parse_args()
 

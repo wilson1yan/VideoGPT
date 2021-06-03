@@ -5,16 +5,16 @@ import torch
 import torch.nn.functional as F
 import torch.utils.data as data
 
-from ..data import preprocess
+from ..data import preprocess as preprocess_single
 from .pytorch_i3d import InceptionI3d
 import os
 
 
-def preprocess(videos, target_resolution=(224, 224)):
+def preprocess(videos, target_resolution=224):
     # videos in {0, ..., 255} as np.uint8 array
     b, t, h, w, c = videos.shape
     videos = torch.from_numpy(videos)
-    videos = torch.stack([preprocess(video, target_resolution) for video in videos])
+    videos = torch.stack([preprocess_single(video, target_resolution) for video in videos])
     return videos
 
 def get_fvd_logits(videos, i3d, device):
@@ -92,11 +92,11 @@ def frechet_distance(x1, x2):
 
 
 def get_logits(i3d, videos, device):
-    assert videos.shape[0] % MAX_BATCH == 0
+    assert videos.shape[0] % 16 == 0
     with torch.no_grad():
         logits = []
-        for i in range(0, videos.shape[0], MAX_BATCH):
-            batch = videos[i:i + MAX_BATCH].to(device)
+        for i in range(0, videos.shape[0], 16):
+            batch = videos[i:i + 16].to(device)
             logits.append(i3d(batch))
         logits = torch.cat(logits, dim=0)
         return logits

@@ -126,10 +126,11 @@ class HDF5Dataset(data.Dataset):
         self.resolution = resolution
 
         # read in data
+        self.data_file = data_file
         self.data = h5py.File(data_file, 'r')
-        prefix = 'train' if train else 'test'
-        self._images = self.data[f'{prefix}_data']
-        self._idx = self.data[f'{prefix}_idx']
+        self.prefix = 'train' if train else 'test'
+        self._images = self.data[f'{self.prefix}_data']
+        self._idx = self.data[f'{self.prefix}_idx']
 
         # compute splits for all possible sequences
         self._splits = self._compute_seq_splits()
@@ -147,6 +148,19 @@ class HDF5Dataset(data.Dataset):
             splits.extend([(start + i, start + i + self.sequence_length)
                            for i in range(end - start - self.sequence_length)])
         return splits
+
+    def __getstate__(self):
+        state = self.__dict__
+        state['data'] = None
+        state['_images'] = None
+        state['_idx'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.data = h5py.File(self.data_file, 'r')
+        self._images = self.data[f'{self.prefix}_data']
+        self._idx = self.data[f'{self.prefix}_idx']
 
     def __len__(self):
         return len(self._splits)
