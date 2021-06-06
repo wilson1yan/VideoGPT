@@ -11,6 +11,9 @@ from videogpt.fvd.fvd import get_fvd_logits, frechet_distance, load_fvd_model
 from videogpt import VideoData, VideoGPT
 
 
+MAX_BATCH = 32
+
+
 def main():
     assert torch.cuda.is_available()
     ngpus = torch.cuda.device_count()
@@ -36,7 +39,7 @@ def main_worker(rank, size, args_in):
     gpt.eval()
     args = gpt.hparams['args']
 
-    args.batch_size =  256
+    args.batch_size =  256 // dist.get_world_size()
     loader = VideoData(args).test_dataloader()
 
     #################### Load I3D ########################################
@@ -81,8 +84,8 @@ def eval_fvd(i3d, videogpt, loader, device):
     batch = {k: v.to(device) for k, v in batch.items()}
 
     fake_embeddings = []
-    for i in range(0, batch['video'].shape[0], 16):
-        fake = videogpt.sample(16, {k: v[i:i+16] for k, v in batch.items()})
+    for i in range(0, batch['video'].shape[0], MAX_BATCH):
+        fake = videogpt.sample(MAX_BATCH, {k: v[i:i+MAX_BATCH] for k, v in batch.items()})
         fake = fake.permute(0, 2, 3, 4, 1).cpu().numpy() # BCTHW -> BTHWC
         fake = (fake * 255).astype('uint8')
         fake_embeddings.append(get_fvd_logits(fake, i3d=i3d, device=device))
@@ -90,8 +93,8 @@ def eval_fvd(i3d, videogpt, loader, device):
 
     real = batch['video'].to(device)
     real_recon_embeddings = []
-    for i in range(0, batch['video'].shape[0], 16):
-        real_recon = (videogpt.get_reconstruction(batch['video'][i:i+16]) + 0.5).clamp(0, 1)
+    for i in range(0, batch['video'].shape[0], MAX_BATCH):
+        real_recon = (videogpt.get_reconstruction(batch['video'][i:i+MAX_BATCH]) + 0.5).clamp(0, 1)
         real_recon = real_recon.permute(0, 2, 3, 4, 1).cpu().numpy()
         real_recon = (real_recon * 255).astype('uint8')
         real_recon_embeddings.append(get_fvd_logits(real_recon, i3d=i3d, device=device))
@@ -119,7 +122,7 @@ def eval_fvd(i3d, videogpt, loader, device):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ckpt', type=str, required=True)
-    parser.add_argument('--n_trials', type=int, default=4, help="Number of trials to compute mean/std")
+    parser.add_argument('--n_trials', type=int, default=1, help="Number of trials to compute mean/std")
     parser.add_argument('--port', type=int, default=23452)
     args = parser.parse_args()
 

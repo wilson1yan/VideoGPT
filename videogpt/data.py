@@ -11,6 +11,7 @@ import h5py
 import torch
 import torch.utils.data as data
 import torch.nn.functional as F
+import torch.distributed as dist
 from torchvision.datasets.video_utils import VideoClips
 import pytorch_lightning as pl
 
@@ -192,12 +193,19 @@ class VideoData(pl.LightningDataModule):
 
     def _dataloader(self, train):
         dataset = self._dataset(train)
+        if dist.is_initialized():
+            sampler = data.distributed.DistributedSampler(
+                dataset, num_replicas=dist.get_world_size(), rank=dist.get_rank()
+            )
+        else:
+            sampler = None
         dataloader = data.DataLoader(
             dataset,
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=True,
-            shuffle=True
+            sampler=sampler,
+            shuffle=sampler is None
         )
         return dataloader
 
