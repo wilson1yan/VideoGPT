@@ -32,7 +32,7 @@ def main():
     if args.gpus > 1:
         # find_unused_parameters = False to support gradient checkpointing
         kwargs = dict(distributed_backend='ddp', gpus=args.gpus,
-                      plugins=[pl.plugins.DDPPlugin(find_unused_parameters=False)])
+                      plugins=[pl.plugins.DDPShardedPlugin(find_unused_parameters=False)])
     trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks,
                                             max_steps=args.max_steps, **kwargs)
 
