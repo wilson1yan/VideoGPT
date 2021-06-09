@@ -111,12 +111,9 @@ def eval_fvd(i3d, videogpt, loader, device):
 
     assert fake_embeddings.shape[0] == real_recon_embeddings.shape[0] == real_embeddings.shape[0] == 256
 
-    if is_root:
-        fvd = frechet_distance(fake_embeddings.clone(), real_embeddings)
-        fvd_star = frechet_distance(fake_embeddings.clone(), real_recon_embeddings)
-        return fvd.item(), fvd_star.item()
-
-    return None, None
+    fvd = frechet_distance(fake_embeddings.clone(), real_embeddings)
+    fvd_star = frechet_distance(fake_embeddings.clone(), real_recon_embeddings)
+    return fvd.item(), fvd_star.item()
 
 
 if __name__ == '__main__':

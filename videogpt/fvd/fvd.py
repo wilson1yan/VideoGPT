@@ -15,7 +15,7 @@ def preprocess(videos, target_resolution=224):
     b, t, h, w, c = videos.shape
     videos = torch.from_numpy(videos)
     videos = torch.stack([preprocess_single(video, target_resolution) for video in videos])
-    return videos
+    return videos * 2 # [-0.5, 0.5] -> [-1, 1]
 
 def get_fvd_logits(videos, i3d, device):
     videos = preprocess(videos)
