@@ -4,6 +4,7 @@ import os
 import torch
 
 from .vqvae import VQVAE
+from .gpt import VideoGPT
 
 
 def get_confirm_token(response):
@@ -59,3 +60,16 @@ def load_vqvae(model_name, device=torch.device('cpu')):
     vqvae.eval()
 
     return vqvae
+
+
+_VIDEOGPT = {
+    'ucf101': '' # unconditional, 16 frames of 64 x 64 images
+}
+
+def load_videogpt(model_name, device=torch.device('cpu')):
+    assert model_name in _VIDEOGPT, f"Invalid model_name: {model_name}"
+    filepath = download(_VIDEOGPT[model_name], model_name)
+    gpt = VideoGPT.load_from_checkpoint(filepath).to(device)
+    gpt.eval()
+
+    return gpt
