@@ -146,10 +146,6 @@ class MultiHeadAttention(nn.Module):
             assert not causal, 'causal axial attention is not supported'
             self.attn = AxialAttention(len(shape), **attn_kwargs)
         elif attn_type == 'sparse':
-            try:
-                from deepspeed.ops.sparse_attention import MatMul, Softmax
-            except:
-                raise Exception('Error importing deepspeed. Please install using `DS_BUILD_SPARSE_ATTN=1 pip install deepspeed`')
             self.attn = SparseAttention(shape, n_head, causal, **attn_kwargs)
 
         self.cache = None
@@ -264,7 +260,6 @@ class SparseAttention(nn.Module):
         self.sparsity_config = StridedSparsityConfig(shape=shape, n_head=n_head,
                                                      causal=causal, block=block,
                                                      num_local_blocks=num_local_blocks)
-        self.get_ops()
 
         if self.shape not in SparseAttention.block_layout:
             SparseAttention.block_layout[self.shape] = self.sparsity_config.make_layout()
@@ -272,7 +267,10 @@ class SparseAttention(nn.Module):
             SparseAttention.attn_mask[self.shape] = self.sparsity_config.make_sparse_attn_mask()
 
     def get_ops(self):
-        from deepspeed.ops.sparse_attention import MatMul, Softmax
+        try:
+            from deepspeed.ops.sparse_attention import MatMul, Softmax
+        except:
+            raise Exception('Error importing deepspeed. Please install using `DS_BUILD_SPARSE_ATTN=1 pip install deepspeed`')
         if self.shape not in SparseAttention.ops:
             sparsity_layout = self.sparsity_config.make_layout()
             sparse_dot_sdd_nt = MatMul(sparsity_layout,
@@ -295,6 +293,9 @@ class SparseAttention(nn.Module):
         return SparseAttention.ops[self.shape]
 
     def forward(self, q, k, v, decode_step, decode_idx):
+        if self.training and self.shape not in SparseAttention.ops:
+            self.get_ops()
+
         SparseAttention.block_layout[self.shape] = SparseAttention.block_layout[self.shape].to(q)
         if self.causal:
             SparseAttention.attn_mask[self.shape] = SparseAttention.attn_mask[self.shape].to(q).type_as(q)
