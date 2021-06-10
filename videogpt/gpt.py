@@ -13,8 +13,6 @@ import pytorch_lightning as pl
 from .resnet import resnet34
 from .attention import AttentionStack, LayerNorm, AddBroadcastPosEmbed
 from .utils import shift_dim
-from .vqvae import VQVAE
-from .download import load_vqvae
 
 
 class VideoGPT(pl.LightningModule):
@@ -23,6 +21,8 @@ class VideoGPT(pl.LightningModule):
         self.args = args
 
         # Load VQ-VAE and set all parameters to no grad
+        from .vqvae import VQVAE
+        from .download import load_vqvae
         if not os.path.exists(args.vqvae):
             self.vqvae = load_vqvae(args.vqvae)
         else:
