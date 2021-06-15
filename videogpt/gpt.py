@@ -29,6 +29,7 @@ class VideoGPT(pl.LightningModule):
             self.vqvae =  VQVAE.load_from_checkpoint(args.vqvae)
         for p in self.vqvae.parameters():
             p.requires_grad = False
+        self.vqvae.codebook._need_init = False
         self.vqvae.eval()
 
         # ResNet34 for frame conditioning
@@ -136,6 +137,7 @@ class VideoGPT(pl.LightningModule):
         return loss, logits
 
     def training_step(self, batch, batch_idx):
+        self.vqvae.eval()
         x = batch['video']
 
         cond = dict()
