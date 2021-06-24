@@ -18,6 +18,7 @@ class AttentionStack(nn.Module):
         self.embd_dim = embd_dim
         self.use_frame_cond = frame_cond_shape is not None
 
+        self.right_shift = RightShift(embd_dim)
         self.pos_embd = AddBroadcastPosEmbed(
             shape=shape, embd_dim=embd_dim
         )
@@ -50,7 +51,7 @@ class AttentionStack(nn.Module):
             decode: the enumerated rasterscan order of the current idx being sampled
             decode_step: a tuple representing the current idx being sampled
         """
-        x = right_shift(x, decode_step)
+        x = self.right_shift(x, decode_step)
         x = self.pos_embd(x, decode_step, decode_idx)
         for net in self.attn_nets:
             x = net(x, cond, decode_step, decode_idx)
@@ -509,16 +510,24 @@ def scaled_dot_product_attention(q, k, v, mask=None, attn_dropout=0., training=T
     return a
 
 
-def right_shift(x, decode_step):
-    if decode_step is not None and decode_step > 0:
+class RightShift(nn.Module):
+    def __init__(self, embd_dim):
+        super().__init__()
+        self.embd_dim = embd_dim
+        self.sos = nn.Parameter(torch.FloatTensor(embd_dim).normal_(std=0.02), requires_grad=True)
+
+    def forward(self, x, decode_step):
+        if decode_step is not None and decode_step > 0:
+            return x
+
+        x_shape = list(x.shape)
+        x = x.flatten(start_dim=1, end_dim=-2) # (b, seq_len, embd_dim)
+        sos = torch.ones(x_shape[0], 1, self.embd_dim, dtype=torch.float32).to(self.sos) * self.sos
+        sos = sos.type_as(x)
+        x = torch.cat([sos, x[:, :-1, :]], axis=1)
+        x = x.view(*x_shape)
+
         return x
-
-    x_shape = list(x.shape)
-    x = x.flatten(start_dim=1, end_dim=-2) # (b, seq_len, embd_dim)
-    x = F.pad(x[:, :-1], (0, 0, 1, 0))
-    x = x.view(*x_shape)
-
-    return x
 
 
 class GeLU2(nn.Module):
