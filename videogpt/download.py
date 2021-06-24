@@ -63,7 +63,7 @@ def load_vqvae(model_name, device=torch.device('cpu')):
 
 
 _VIDEOGPT = {
-    'ucf101': '1bDzvav64wyTers9g0GNbmMlINvSdTecm' # unconditional, 16 frames of 64 x 64 images
+    'bair_gpt': '1fNTtJAgO6grEtPNrufkpbee1CfGztW-1', # 1-frame conditional, 16 frames of 64 x 64 images
 }
 
 def load_videogpt(model_name, device=torch.device('cpu')):

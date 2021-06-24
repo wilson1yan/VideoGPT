@@ -1,3 +1,4 @@
+import os
 import functools
 import argparse
 from tqdm import tqdm
@@ -8,7 +9,7 @@ import torch.multiprocessing as mp
 import torch.distributed as dist
 
 from videogpt.fvd.fvd import get_fvd_logits, frechet_distance, load_fvd_model
-from videogpt import VideoData, VideoGPT
+from videogpt import VideoData, VideoGPT, load_videogpt
 
 
 MAX_BATCH = 32
@@ -35,7 +36,10 @@ def main_worker(rank, size, args_in):
     n_trials = args.n_trials
 
     #################### Load VideoGPT ########################################
-    gpt = VideoGPT.load_from_checkpoint(args.ckpt).to(device)
+    if not os.path.exists(args.ckpt):
+        gpt = load_videogpt(args.ckpt, device=device)
+    else:
+        gpt = VideoGPT.load_from_checkpoint(args.ckpt).to(device)
     gpt.eval()
     args = gpt.hparams['args']
 
