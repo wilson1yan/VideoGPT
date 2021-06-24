@@ -24,7 +24,11 @@ $ DS_BUILD_SPARSE_ATTN=1 pip install deepspeed
 After installng `deepspeed`, you can train a sparse transformer by setting the flag `--attn_type sparse` in `scripts/train_videogpt.py`. The default supported sparsity configuration is an N-d strided sparsity layout, however, you can write your own arbitrary layouts to use.
 
 ## Dataset
-The default code accepts data as an HDF5 file with the specified format in `videogpt/data.py`, OR a directory format with the follow structure:
+The default code accepts data as an HDF5 file with the specified format in `videogpt/data.py`. An example of such a dataset can be constructed from the BAIR Robot data by running the script:
+```bash
+sh scripts/preprocess/bair/create_bair_dataset.sh datasets/bair
+``` 
+Alternatively, the code supports a dataset with the following directory structure:
 ```
 video_dataset/
     train/
@@ -52,7 +56,7 @@ video_dataset/
 ```
 An example of such a dataset can be constructed from [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) data by running the script 
 ```bash
-sh scripts/preprocess/create_ucf_dataset.sh datasets/ucf101
+sh scripts/preprocess/ucf101/create_ucf_dataset.sh datasets/ucf101
 ``` 
 You may need to install `unrar` and `unzip` for the code to work correctly.
 
