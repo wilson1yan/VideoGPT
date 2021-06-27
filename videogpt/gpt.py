@@ -7,21 +7,22 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim.lr_scheduler as lr_scheduler
 import pytorch_lightning as pl
 
 from .resnet import resnet34
 from .attention import AttentionStack, LayerNorm, AddBroadcastPosEmbed
 from .utils import shift_dim
-from .vqvae import VQVAE
-from .download import load_vqvae
 
 
 class VideoGPT(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
-        self.hparams = args
+        self.args = args
 
         # Load VQ-VAE and set all parameters to no grad
+        from .vqvae import VQVAE
+        from .download import load_vqvae
         if not os.path.exists(args.vqvae):
             self.vqvae = load_vqvae(args.vqvae)
         else:
@@ -66,19 +67,22 @@ class VideoGPT(pl.LightningModule):
 
         self.save_hyperparameters()
 
+    def get_reconstruction(self, videos):
+        return self.vqvae.decode(self.vqvae.encode(videos))
+
     def sample(self, n, batch=None):
         device = self.fc_in.weight.device
 
         cond = dict()
-        if self.use_frame_cond or self.hparams.class_cond:
+        if self.use_frame_cond or self.args.class_cond:
             assert batch is not None
             video = batch['video']
 
-            if self.hparams.class_cond:
+            if self.args.class_cond:
                 label = batch['label']
-                cond['class_cond'] = F.one_hot(label, self.hparams.class_cond_dim).type_as(video)
+                cond['class_cond'] = F.one_hot(label, self.args.class_cond_dim).type_as(video)
             if self.use_frame_cond:
-                cond['frame_cond'] = video[:, :, :self.hparams.n_cond_frames]
+                cond['frame_cond'] = video[:, :, :self.args.n_cond_frames]
 
         samples = torch.zeros((n,) + self.shape).long().to(device)
         idxs = list(itertools.product(*[range(s) for s in self.shape]))
@@ -137,11 +141,11 @@ class VideoGPT(pl.LightningModule):
         x = batch['video']
 
         cond = dict()
-        if self.hparams.class_cond:
+        if self.args.class_cond:
             label = batch['label']
-            cond['class_cond'] = F.one_hot(label, self.hparams.class_cond_dim).type_as(x)
+            cond['class_cond'] = F.one_hot(label, self.args.class_cond_dim).type_as(x)
         if self.use_frame_cond:
-            cond['frame_cond'] = x[:, :, :self.hparams.n_cond_frames]
+            cond['frame_cond'] = x[:, :, :self.args.n_cond_frames]
 
         with torch.no_grad():
             targets, x = self.vqvae.encode(x, include_embeddings=True)
@@ -155,7 +159,10 @@ class VideoGPT(pl.LightningModule):
         self.log('val/loss', loss, prog_bar=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=3e-4, betas=(0.9, 0.999))
+        optimizer = torch.optim.Adam(self.parameters(), lr=3e-4, betas=(0.9, 0.999))
+        assert hasattr(self.args, 'max_steps') and self.args.max_steps is not None, f"Must set max_steps argument"
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, self.args.max_steps)
+        return [optimizer], [dict(scheduler=scheduler, interval='step', frequency=1)]
 
 
     @staticmethod

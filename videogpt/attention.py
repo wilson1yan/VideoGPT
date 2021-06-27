@@ -18,6 +18,7 @@ class AttentionStack(nn.Module):
         self.embd_dim = embd_dim
         self.use_frame_cond = frame_cond_shape is not None
 
+        self.right_shift = RightShift(embd_dim)
         self.pos_embd = AddBroadcastPosEmbed(
             shape=shape, embd_dim=embd_dim
         )
@@ -50,7 +51,7 @@ class AttentionStack(nn.Module):
             decode: the enumerated rasterscan order of the current idx being sampled
             decode_step: a tuple representing the current idx being sampled
         """
-        x = right_shift(x, decode_step)
+        x = self.right_shift(x, decode_step)
         x = self.pos_embd(x, decode_step, decode_idx)
         for net in self.attn_nets:
             x = net(x, cond, decode_step, decode_idx)
@@ -146,10 +147,6 @@ class MultiHeadAttention(nn.Module):
             assert not causal, 'causal axial attention is not supported'
             self.attn = AxialAttention(len(shape), **attn_kwargs)
         elif attn_type == 'sparse':
-            try:
-                from deepspeed.ops.sparse_attention import MatMul, Softmax
-            except:
-                raise Exception('Error importing deepspeed. Please install using `DS_BUILD_SPARSE_ATTN=1 pip install deepspeed`')
             self.attn = SparseAttention(shape, n_head, causal, **attn_kwargs)
 
         self.cache = None
@@ -264,7 +261,6 @@ class SparseAttention(nn.Module):
         self.sparsity_config = StridedSparsityConfig(shape=shape, n_head=n_head,
                                                      causal=causal, block=block,
                                                      num_local_blocks=num_local_blocks)
-        self.get_ops()
 
         if self.shape not in SparseAttention.block_layout:
             SparseAttention.block_layout[self.shape] = self.sparsity_config.make_layout()
@@ -272,7 +268,10 @@ class SparseAttention(nn.Module):
             SparseAttention.attn_mask[self.shape] = self.sparsity_config.make_sparse_attn_mask()
 
     def get_ops(self):
-        from deepspeed.ops.sparse_attention import MatMul, Softmax
+        try:
+            from deepspeed.ops.sparse_attention import MatMul, Softmax
+        except:
+            raise Exception('Error importing deepspeed. Please install using `DS_BUILD_SPARSE_ATTN=1 pip install deepspeed`')
         if self.shape not in SparseAttention.ops:
             sparsity_layout = self.sparsity_config.make_layout()
             sparse_dot_sdd_nt = MatMul(sparsity_layout,
@@ -295,6 +294,9 @@ class SparseAttention(nn.Module):
         return SparseAttention.ops[self.shape]
 
     def forward(self, q, k, v, decode_step, decode_idx):
+        if self.training and self.shape not in SparseAttention.ops:
+            self.get_ops()
+
         SparseAttention.block_layout[self.shape] = SparseAttention.block_layout[self.shape].to(q)
         if self.causal:
             SparseAttention.attn_mask[self.shape] = SparseAttention.attn_mask[self.shape].to(q).type_as(q)
@@ -508,16 +510,24 @@ def scaled_dot_product_attention(q, k, v, mask=None, attn_dropout=0., training=T
     return a
 
 
-def right_shift(x, decode_step):
-    if decode_step is not None and decode_step > 0:
+class RightShift(nn.Module):
+    def __init__(self, embd_dim):
+        super().__init__()
+        self.embd_dim = embd_dim
+        self.sos = nn.Parameter(torch.FloatTensor(embd_dim).normal_(std=0.02), requires_grad=True)
+
+    def forward(self, x, decode_step):
+        if decode_step is not None and decode_step > 0:
+            return x
+
+        x_shape = list(x.shape)
+        x = x.flatten(start_dim=1, end_dim=-2) # (b, seq_len, embd_dim)
+        sos = torch.ones(x_shape[0], 1, self.embd_dim, dtype=torch.float32).to(self.sos) * self.sos
+        sos = sos.type_as(x)
+        x = torch.cat([sos, x[:, :-1, :]], axis=1)
+        x = x.view(*x_shape)
+
         return x
-
-    x_shape = list(x.shape)
-    x = x.flatten(start_dim=1, end_dim=-2) # (b, seq_len, embd_dim)
-    x = F.pad(x[:, :-1], (0, 0, 1, 0))
-    x = x.view(*x_shape)
-
-    return x
 
 
 class GeLU2(nn.Module):
