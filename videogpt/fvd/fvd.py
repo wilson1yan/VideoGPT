@@ -1,13 +1,5 @@
-import argparse
-import numpy as np
-
 import torch
-import torch.nn.functional as F
-import torch.utils.data as data
-
 from ..data import preprocess as preprocess_single
-from .pytorch_i3d import InceptionI3d
-import os
 
 
 def preprocess(videos, target_resolution=224):
@@ -21,15 +13,6 @@ def get_fvd_logits(videos, i3d, device):
     videos = preprocess(videos)
     embeddings = get_logits(i3d, videos, device)
     return embeddings
-
-def load_fvd_model(device):
-    i3d = InceptionI3d(400, in_channels=3).to(device)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    i3d_path = os.path.join(current_dir, 'i3d_pretrained_400.pt')
-    i3d.load_state_dict(torch.load(i3d_path, map_location=device))
-    i3d.eval()
-    return i3d
-
 
 # https://github.com/tensorflow/gan/blob/de4b8da3853058ea380a6152bd3bd454013bf619/tensorflow_gan/python/eval/classifier_metrics.py#L161
 def _symmetric_matrix_square_root(mat, eps=1e-10):

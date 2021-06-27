@@ -1,6 +1,7 @@
 import os
 import functools
 import argparse
+from videogpt.download import load_i3d_pretrained
 from tqdm import tqdm
 import numpy as np
 
@@ -8,7 +9,7 @@ import torch
 import torch.multiprocessing as mp
 import torch.distributed as dist
 
-from videogpt.fvd.fvd import get_fvd_logits, frechet_distance, load_fvd_model
+from videogpt.fvd.fvd import get_fvd_logits, frechet_distance
 from videogpt import VideoData, VideoGPT, load_videogpt
 
 
@@ -47,7 +48,7 @@ def main_worker(rank, size, args_in):
     loader = VideoData(args).test_dataloader()
 
     #################### Load I3D ########################################
-    i3d = load_fvd_model(device)
+    i3d = load_i3d_pretrained(device)
 
     #################### Compute FVD ###############################
     fvds = []
@@ -122,7 +123,7 @@ def eval_fvd(i3d, videogpt, loader, device):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt', type=str, required=True)
+    parser.add_argument('--ckpt', type=str, default='bair_gpt')
     parser.add_argument('--n_trials', type=int, default=1, help="Number of trials to compute mean/std")
     parser.add_argument('--port', type=int, default=23452)
     args = parser.parse_args()
