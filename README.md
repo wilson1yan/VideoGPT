@@ -126,11 +126,12 @@ You can download a pretrained VQ-VAE, or train your own. Afterwards, use the `sc
 * `--attn_type full`: `full` or `sparse` attention. Refer to the Installation section for install sparse attention
 * `--attn_dropout 0.3`: dropout probability applied to the attention weight matrix
 ### Training Settings
-* `--gpus 2`: number of gpus for distributed training
-* `--sync_batchnorm`: uses `SyncBatchNorm` instead of `BatchNorm3d` when using > 1 gpu
+* `--gpus 4`: number of gpus for distributed training
 * `--gradient_clip_val 1`: gradient clipping threshold for training
-* `--batch_size 16`: batch size per gpu
-* `--num_workers 8`: number of workers for each DataLoader
+* `--batch_size 8`: batch size per gpu
+* `--num_workers 2`: number of workers for each DataLoader
+* `--amp_level O1`: for mixed precision training
+* `--precision 16`: for mixed precision training
 
 ### Dataset Settings
 * `--data_path <path>`: path to an `hdf5` file or a folder containing `train` and `test` folders with subdirectories of videos
