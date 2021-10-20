@@ -7,10 +7,12 @@ import warnings
 
 import glob
 import h5py
+import numpy as np
 
 import torch
 import torch.utils.data as data
 import torch.nn.functional as F
+import torch.distributed as dist
 from torchvision.datasets.video_utils import VideoClips
 import pytorch_lightning as pl
 
@@ -126,34 +128,41 @@ class HDF5Dataset(data.Dataset):
         self.resolution = resolution
 
         # read in data
+        self.data_file = data_file
         self.data = h5py.File(data_file, 'r')
-        prefix = 'train' if train else 'test'
-        self._images = self.data[f'{prefix}_data']
-        self._idx = self.data[f'{prefix}_idx']
-
-        # compute splits for all possible sequences
-        self._splits = self._compute_seq_splits()
+        self.prefix = 'train' if train else 'test'
+        self._images = self.data[f'{self.prefix}_data']
+        self._idx = self.data[f'{self.prefix}_idx']
+        self.size = len(self._idx)
 
     @property
     def n_classes(self):
         raise Exception('class conditioning not support for HDF5Dataset')
 
-    def _compute_seq_splits(self):
-        splits = []
-        n_videos = len(self._idx)
-        for i in range(n_videos):
-            start = self._idx[i]
-            end = self._idx[i + 1] if i < n_videos - 1 else n_videos
-            splits.extend([(start + i, start + i + self.sequence_length)
-                           for i in range(end - start - self.sequence_length)])
-        return splits
+    def __getstate__(self):
+        state = self.__dict__
+        state['data'] = None
+        state['_images'] = None
+        state['_idx'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.data = h5py.File(self.data_file, 'r')
+        self._images = self.data[f'{self.prefix}_data']
+        self._idx = self.data[f'{self.prefix}_idx']
 
     def __len__(self):
-        return len(self._splits)
+        return self.size
 
     def __getitem__(self, idx):
-        start_idx, end_idx = self._splits[idx]
-        video = torch.tensor(self._images[start_idx:end_idx])
+        start = self._idx[idx]
+        end = self._idx[idx + 1] if idx < len(self._idx) - 1 else len(self._images)
+        assert end - start >= 0
+
+        start = start + np.random.randint(low=0, high=end - start - self.sequence_length)
+        assert start < start + self.sequence_length <= end
+        video = torch.tensor(self._images[start:start + self.sequence_length])
         return dict(video=preprocess(video, self.resolution))
 
 
@@ -161,7 +170,7 @@ class VideoData(pl.LightningDataModule):
 
     def __init__(self, args):
         super().__init__()
-        self.hparams = args
+        self.args = args
 
     @property
     def n_classes(self):
@@ -170,20 +179,27 @@ class VideoData(pl.LightningDataModule):
 
 
     def _dataset(self, train):
-        Dataset = VideoDataset if osp.isdir(self.hparams.data_path) else HDF5Dataset
-        dataset = Dataset(self.hparams.data_path, self.hparams.sequence_length,
-                          train=train, resolution=self.hparams.resolution)
+        Dataset = VideoDataset if osp.isdir(self.args.data_path) else HDF5Dataset
+        dataset = Dataset(self.args.data_path, self.args.sequence_length,
+                          train=train, resolution=self.args.resolution)
         return dataset
 
 
     def _dataloader(self, train):
         dataset = self._dataset(train)
+        if dist.is_initialized():
+            sampler = data.distributed.DistributedSampler(
+                dataset, num_replicas=dist.get_world_size(), rank=dist.get_rank()
+            )
+        else:
+            sampler = None
         dataloader = data.DataLoader(
             dataset,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
+            batch_size=self.args.batch_size,
+            num_workers=self.args.num_workers,
             pin_memory=True,
-            shuffle=True
+            sampler=sampler,
+            shuffle=sampler is None
         )
         return dataloader
 

@@ -4,6 +4,7 @@ import os
 import torch
 
 from .vqvae import VQVAE
+from .gpt import VideoGPT
 
 
 def get_confirm_token(response):
@@ -59,3 +60,28 @@ def load_vqvae(model_name, device=torch.device('cpu')):
     vqvae.eval()
 
     return vqvae
+
+
+_VIDEOGPT = {
+    'bair_gpt': '1fNTtJAgO6grEtPNrufkpbee1CfGztW-1', # 1-frame conditional, 16 frames of 64 x 64 images
+    'ucf101_uncond_gpt': '1QkF_Sb2XVRgSbFT_SxQ6aZUeDFoliPQq', # unconditional, 16 frames of 128 x 128 images
+}
+
+def load_videogpt(model_name, device=torch.device('cpu')):
+    assert model_name in _VIDEOGPT, f"Invalid model_name: {model_name}"
+    filepath = download(_VIDEOGPT[model_name], model_name)
+    gpt = VideoGPT.load_from_checkpoint(filepath).to(device)
+    gpt.eval()
+
+    return gpt
+
+
+_I3D_PRETRAINED_ID = '1mQK8KD8G6UWRa5t87SRMm5PVXtlpneJT'
+
+def load_i3d_pretrained(device=torch.device('cpu')):
+    from .fvd.pytorch_i3d import InceptionI3d
+    i3d = InceptionI3d(400, in_channels=3).to(device)
+    filepath = download(_I3D_PRETRAINED_ID, 'i3d_pretrained_400.pt')
+    i3d.load_state_dict(torch.load(filepath, map_location=device))
+    i3d.eval()
+    return i3d

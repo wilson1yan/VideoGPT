@@ -1,6 +1,6 @@
 # VideoGPT: Video Generation using VQ-VAE and Transformers
 
-[[Paper]](https://arxiv.org/abs/2104.10157)[[Website]](https://wilson1yan.github.io/videogpt/index.html)[[Colab]](https://colab.research.google.com/github/wilson1yan/VideoGPT/blob/master/notebooks/Using_VideoGPT.ipynb)[[Gradio Demo]](https://gradio.app/g/AK391/VideoGPT)
+[[Paper]](https://arxiv.org/abs/2104.10157)[[Website]](https://wilson1yan.github.io/videogpt/index.html)[[Colab]](https://colab.research.google.com/github/wilson1yan/VideoGPT/blob/master/notebooks/Using_VideoGPT.ipynb)
 
 We present VideoGPT: a conceptually simple architecture for scaling likelihood based generative modeling to natural videos. VideoGPT uses VQ-VAE that learns downsampled discrete latent representations of a raw video by employing 3D convolutions and axial self-attention. A simple GPT-like architecture is then used to autoregressively model the discrete latents using spatio-temporal position encodings. Despite the simplicity in formulation and ease of training, our architecture is able to generate samples competitive with state-of-the-art GAN models for video generation on the BAIR Robot dataset, and generate high fidelity natural images from UCF-101 and Tumbler GIF Dataset (TGIF). We hope our proposed architecture serves as a reproducible reference for a minimalistic implementation of transformer based video generation models.
 
@@ -11,20 +11,24 @@ We present VideoGPT: a conceptually simple architecture for scaling likelihood b
 ## Installation
 Change the `cudatoolkit` version compatible to your machine.
 ```bash
-$ conda install --yes -c pytorch pytorch=1.7.1 torchvision cudatoolkit=11.0
-$ pip install git+https://github.com/wilson1yan/VideoGPT.git
+conda install --yes -c pytorch pytorch=1.7.1 torchvision cudatoolkit=11.0
+pip install git+https://github.com/wilson1yan/VideoGPT.git
 ```
 
 ### Sparse Attention (Optional)
 For limited compute scenarios, it may be beneficial to use [sparse attention](https://arxiv.org/abs/1904.10509).
 ```bash
-$ sudo apt-get install llvm-9-dev
-$ DS_BUILD_SPARSE_ATTN=1 pip install deepspeed
+sudo apt-get install llvm-9-dev
+DS_BUILD_SPARSE_ATTN=1 pip install deepspeed
 ```
-After installng `deepspeed`, you can train a sparse transformer by setting the flag `--attn_type sparse` in `scripts/train_videogpt.py`. The default support sparsity configuration is an N-d strided sparsity layout, however, you can write your own arbitrary layouts to use.
+After installng `deepspeed`, you can train a sparse transformer by setting the flag `--attn_type sparse` in `scripts/train_videogpt.py`. The default supported sparsity configuration is an N-d strided sparsity layout, however, you can write your own arbitrary layouts to use.
 
 ## Dataset
-The default code accepts data as an HDF5 file with the specified format in `videogpt/data.py`, and a directory format with the follow structure:
+The default code accepts data as an HDF5 file with the specified format in `videogpt/data.py`. An example of such a dataset can be constructed from the BAIR Robot data by running the script:
+```bash
+sh scripts/preprocess/bair/create_bair_dataset.sh datasets/bair
+``` 
+Alternatively, the code supports a dataset with the following directory structure:
 ```
 video_dataset/
     train/
@@ -52,7 +56,7 @@ video_dataset/
 ```
 An example of such a dataset can be constructed from [UCF-101](https://www.crcv.ucf.edu/data/UCF101.php) data by running the script 
 ```bash
-sh scripts/preprocess/create_ucf_dataset.sh datasets/ucf101
+sh scripts/preprocess/ucf101/create_ucf_dataset.sh datasets/ucf101
 ``` 
 You may need to install `unrar` and `unzip` for the code to work correctly.
 
@@ -103,6 +107,12 @@ Use the `scripts/train_vqvae.py` script to train a VQ-VAE. Execute `python scrip
 * `--resolution 128`: spatial resolution to train on 
 * `--sequence_length 16`: temporal resolution, or video clip length
 
+## Using Pretrained VideoGPTs
+There are two available pre-trained VideoGPT models
+* `bair_gpt`: single frame-conditional BAIR model using discrete encodings from `bair_stride4x2x2` VQ-VAE
+* `ucf101_uncond_gpt`: unconditional UCF101 model using discrete encodings from `ucf101_stride4x4x4` VQ-VAE
+Note that both pre-trained models use sparse attention. For purposes of fine-tuning, you will need to install sparse attention, however, sampling does not required sparse attention to be installed.
+
 ## Training VideoGPT
 You can download a pretrained VQ-VAE, or train your own. Afterwards, use the `scripts/train_videogpt.py` script to train an VideoGPT model for sampling. Execute `python scripts/train_videogpt.py -h` for information on all available training settings. A subset of more relevant settings are listed below, along with default values.
 ### VideoGPT Specific Settings
@@ -116,11 +126,12 @@ You can download a pretrained VQ-VAE, or train your own. Afterwards, use the `sc
 * `--attn_type full`: `full` or `sparse` attention. Refer to the Installation section for install sparse attention
 * `--attn_dropout 0.3`: dropout probability applied to the attention weight matrix
 ### Training Settings
-* `--gpus 2`: number of gpus for distributed training
-* `--sync_batchnorm`: uses `SyncBatchNorm` instead of `BatchNorm3d` when using > 1 gpu
+* `--gpus 4`: number of gpus for distributed training
 * `--gradient_clip_val 1`: gradient clipping threshold for training
-* `--batch_size 16`: batch size per gpu
-* `--num_workers 8`: number of workers for each DataLoader
+* `--batch_size 8`: batch size per gpu
+* `--num_workers 2`: number of workers for each DataLoader
+* `--amp_level O1`: for mixed precision training
+* `--precision 16`: for mixed precision training
 
 ### Dataset Settings
 * `--data_path <path>`: path to an `hdf5` file or a folder containing `train` and `test` folders with subdirectories of videos
@@ -128,7 +139,10 @@ You can download a pretrained VQ-VAE, or train your own. Afterwards, use the `sc
 * `--sequence_length 16`: temporal resolution, or video clip length
 
 ## Sampling VideoGPT
-After training, the VideoGPT model can be sampled using the `scripts/sample_videogpt.py`. You may need to install `ffmpeg`: `sudo apt-get install ffmpeg`
+VideoGPT models can be sampled using the `scripts/sample_videogpt.py`. You can specify a path to a checkpoint during training, or the name of a pretrained model. You may need to install `ffmpeg`: `sudo apt-get install ffmpeg`
+
+## Evaluation
+Evaluation is done primarily using [Frechet Video Distance (FVD)](https://arxiv.org/abs/1812.01717) for BAIR and Kinetics, and [Inception Score](https://arxiv.org/abs/1606.03498) for UCF-101. Inception Score can be computed by generating samples and using the code from the [TGANv2 repo](https://github.com/pfnet-research/tgan2). FVD can be computed through `python scripts/compute_fvd.py`, which runs a PyTorch-ported version of the [original codebase](https://github.com/google-research/google-research/tree/master/frechet_video_distance)
 
 ## Reproducing Paper Results
 Note that this repo is primarily designed for simplicity and extending off of our method. Reproducing the full paper results can be done using code found at a [separate repo](https://github.com/wilson1yan/VideoGPT-Paper). However, be aware that the code is not as clean.

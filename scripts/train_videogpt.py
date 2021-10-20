@@ -13,7 +13,7 @@ def main():
     parser.add_argument('--data_path', type=str, required=True)
     parser.add_argument('--resolution', type=int, default=128)
     parser.add_argument('--sequence_length', type=int, default=16)
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--num_workers', type=int, default=8)
     args = parser.parse_args()
 
@@ -26,7 +26,7 @@ def main():
     model = VideoGPT(args)
 
     callbacks = []
-    callbacks.append(ModelCheckpoint(monitor='val/loss', mode='min'))
+    callbacks.append(ModelCheckpoint(monitor='val/loss', mode='min', save_top_k=-1))
 
     kwargs = dict()
     if args.gpus > 1:
@@ -34,7 +34,7 @@ def main():
         kwargs = dict(distributed_backend='ddp', gpus=args.gpus,
                       plugins=[pl.plugins.DDPPlugin(find_unused_parameters=False)])
     trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks,
-                                            max_steps=200000, **kwargs)
+                                            max_steps=args.max_steps, **kwargs)
 
     trainer.fit(model, data)
 

@@ -14,7 +14,7 @@ from .utils import shift_dim
 class VQVAE(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
-        self.hparams = args
+        self.args = args
         self.embedding_dim = args.embedding_dim
         self.n_codes = args.n_codes
 
@@ -29,10 +29,10 @@ class VQVAE(pl.LightningModule):
 
     @property
     def latent_shape(self):
-        input_shape = (self.hparams.sequence_length, self.hparams.resolution,
-                       self.hparams.resolution)
+        input_shape = (self.args.sequence_length, self.args.resolution,
+                       self.args.resolution)
         return tuple([s // d for s, d in zip(input_shape,
-                                             self.hparams.downsample)])
+                                             self.args.downsample)])
 
     def encode(self, x, include_embeddings=False):
         h = self.pre_vq_conv(self.encoder(x))
