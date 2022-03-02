@@ -10,3 +10,4 @@ av
 gradio
 moviepy
 imageio
+gdown
