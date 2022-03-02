@@ -26,9 +26,9 @@ _VQVAE = {
     'kinetics_stride2x4x4': '1jvtjjtrtE4cy6pl7DK_zWFEPY3RZt2pB' # trained on 16 frames of 128 x 128 images
 }
 
-def load_vqvae(model_name, device=torch.device('cpu')):
+def load_vqvae(model_name, device=torch.device('cpu'), root=os.path.expanduser('~/.cache/videogpt')):
     assert model_name in _VQVAE, f"Invalid model_name: {model_name}"
-    filepath = download(_VQVAE[model_name], model_name)
+    filepath = download(_VQVAE[model_name], model_name, root=root)
     vqvae = VQVAE.load_from_checkpoint(filepath).to(device)
     vqvae.eval()
 
