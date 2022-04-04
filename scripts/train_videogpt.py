@@ -1,7 +1,7 @@
 import argparse
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
-from videogpt import VideoGPT, VideoData
+from videogpt import VideoGPT, VideoData, load_videogpt
 
 
 def main():
@@ -15,6 +15,7 @@ def main():
     parser.add_argument('--sequence_length', type=int, default=16)
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--num_workers', type=int, default=8)
+    parser.add_argument('--pretrained', type=bool, required=True)
     args = parser.parse_args()
 
     data = VideoData(args)
@@ -23,7 +24,10 @@ def main():
     data.test_dataloader()
 
     args.class_cond_dim = data.n_classes if args.class_cond else None
-    model = VideoGPT(args)
+    if args.pretrained:
+        model = load_videogpt('ucf101_uncond_gpt')
+    else:
+        model = VideoGPT(args)
 
     callbacks = []
     callbacks.append(ModelCheckpoint(monitor='val/loss', mode='min', save_top_k=-1))
