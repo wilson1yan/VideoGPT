@@ -12,7 +12,8 @@ We present VideoGPT: a conceptually simple architecture for scaling likelihood b
 ## Installation
 Change the `cudatoolkit` version compatible to your machine.
 ```bash
-conda install --yes -c pytorch pytorch=1.7.1 torchvision cudatoolkit=11.0
+conda install --yes -c conda-forge cudatoolkit=11.0 cudnn
+pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
 pip install git+https://github.com/wilson1yan/VideoGPT.git
 ```
 
