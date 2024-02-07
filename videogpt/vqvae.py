@@ -70,7 +70,7 @@ class VQVAE(pl.LightningModule):
         self.log('val/commitment_loss', vq_output['commitment_loss'], prog_bar=True)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=3e-4, betas=(0.9, 0.999))
+        return torch.optim.Adam(self.parameters(), lr=7e-4, betas=(0.9, 0.999))
 
     @staticmethod
     def add_model_specific_args(parent_parser):
