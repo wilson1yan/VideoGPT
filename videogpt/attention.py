@@ -72,7 +72,6 @@ class AttentionBlock(nn.Module):
                                        attn_kwargs=dict(attn_dropout=attn_dropout))
 
         if frame_cond_shape is not None:
-            enc_len = np.prod(frame_cond_shape[:-1])
             self.pre_enc_norm = LayerNorm(embd_dim, class_cond_dim)
             self.post_enc_dp = nn.Dropout(dropout)
             self.enc_attn = MultiHeadAttention(shape, embd_dim, frame_cond_shape[-1],
