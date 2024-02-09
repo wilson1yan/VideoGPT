@@ -147,3 +147,8 @@ class ResNet(nn.Module):
 def resnet34(width_multiplier, stride, cifar_stem=True, resnet_dim=240):
     return ResNet(3, [3, 4, 6, 3], width_multiplier,
                   stride, cifar_stem=cifar_stem, resnet_dim=resnet_dim)
+
+
+def resnet18(width_multiplier, stride, cifar_stem=True, resnet_dim=240):
+    return ResNet(3, [2, 2, 2, 2], width_multiplier,
+                  stride, cifar_stem=cifar_stem, resnet_dim=resnet_dim)
