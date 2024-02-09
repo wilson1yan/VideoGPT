@@ -1,6 +1,7 @@
 import argparse
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import WandbLogger
 from videogpt import VideoGPT, VideoData
 
 
@@ -37,12 +38,14 @@ def main():
     callbacks = []
     callbacks.append(ModelCheckpoint(monitor='val/loss', mode='min', save_top_k=-1))
 
+    wandb_logger = WandbLogger(project="moving_mnist_videogpt")
+
     kwargs = dict()
     if args.gpus > 1:
         # find_unused_parameters = False to support gradient checkpointing
         kwargs = dict(devices=args.gpus, accelerator="gpu", # gpus=args.gpus,
                       strategy='ddp')
-    trainer = pl.Trainer(callbacks=callbacks, max_steps=args.max_steps, **kwargs)
+    trainer = pl.Trainer(callbacks=callbacks, max_steps=args.max_steps, **kwargs, logger=wandb_logger)
 
     trainer.fit(model, data)
 
