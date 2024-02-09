@@ -32,8 +32,7 @@ def main():
     kwargs = dict()
     if args.gpus > 1:
         kwargs = dict(distributed_backend='ddp', gpus=args.gpus)
-    trainer = pl.Trainer(callbacks=callbacks,
-                                            max_steps=20000, **kwargs, logger=wandb_logger)
+    trainer = pl.Trainer(callbacks=callbacks, max_steps=20000, **kwargs, logger=wandb_logger)
 
     trainer.fit(model, data)
 

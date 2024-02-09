@@ -8,7 +8,16 @@ def main():
     pl.seed_everything(1234)
 
     parser = argparse.ArgumentParser()
-    parser = pl.Trainer.add_argparse_args(parser)
+
+    # Add args that originally came from this line below:
+    # parser = pl.Trainer.add_argparse_args(parser)
+    # ...but don't work anymore in the new version of PyTorch Lightning
+    parser.add_argument('--gpus', type=int, default=2)
+    parser.add_argument('--gradient_clip_val', type=float, default=1.0)
+    parser.add_argument('--amp_level', type=str, default='')
+    parser.add_argument('--precision', type=int, default=16)
+    parser.add_argument('--max_steps', type=int, default=20*1000)
+
     parser = VideoGPT.add_model_specific_args(parser)
     parser.add_argument('--data_path', type=str, required=True)
     parser.add_argument('--resolution', type=int, default=128)
@@ -31,10 +40,9 @@ def main():
     kwargs = dict()
     if args.gpus > 1:
         # find_unused_parameters = False to support gradient checkpointing
-        kwargs = dict(distributed_backend='ddp', gpus=args.gpus,
-                      plugins=[pl.plugins.DDPPlugin(find_unused_parameters=False)])
-    trainer = pl.Trainer.from_argparse_args(args, callbacks=callbacks,
-                                            max_steps=args.max_steps, **kwargs)
+        kwargs = dict(devices=args.gpus, accelerator="gpu", # gpus=args.gpus,
+                      strategy='ddp')
+    trainer = pl.Trainer(callbacks=callbacks, max_steps=args.max_steps, **kwargs)
 
     trainer.fit(model, data)
 
