@@ -9,4 +9,3 @@ i3d_pretrained_400.pt
 # wandb logs
 wandb/
 **/checkpoints/*
-moving_mnist_vqvae/
