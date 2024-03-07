@@ -81,9 +81,9 @@ class AttentionBlock(nn.Module):
         self.pre_fc_norm = LayerNorm(embd_dim, class_cond_dim)
         self.post_fc_dp = nn.Dropout(dropout)
         self.fc_block = nn.Sequential(
-            nn.Linear(in_features=embd_dim, out_features=embd_dim * 4),
+            nn.Linear(in_features=embd_dim, out_features=embd_dim * 2),
             GeLU2(),
-            nn.Linear(in_features=embd_dim * 4, out_features=embd_dim),
+            nn.Linear(in_features=embd_dim * 2, out_features=embd_dim),
         )
 
     def forward(self, x, cond, decode_step, decode_idx):
@@ -470,6 +470,14 @@ class AddBroadcastPosEmbed(nn.Module):
                                     torch.randn(embd_dim // n_dim, shape[i]) * 0.01)
              for i in range(n_dim)
         })
+
+        print(embd_dim)
+        print(shape)
+        for i in range(n_dim):
+            print(             (shape[i], embd_dim // n_dim)
+                                        if dim == -1 else
+                                        (embd_dim // n_dim, shape[i]))
+
 
     def forward(self, x, decode_step=None, decode_idx=None):
         embs = []
