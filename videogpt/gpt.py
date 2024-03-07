@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
 import pytorch_lightning as pl
 
-from .resnet import resnet34
+from .resnet import _, resnet18
 from .attention import AttentionStack, LayerNorm, AddBroadcastPosEmbed
 from .utils import shift_dim
 
@@ -38,8 +38,8 @@ class VideoGPT(pl.LightningModule):
             frame_cond_shape = (args.n_cond_frames,
                                 args.resolution // 4,
                                 args.resolution // 4,
-                                240)
-            self.resnet = resnet34(1, (1, 4, 4), resnet_dim=240)
+                                192)
+            self.resnet = resnet18(1, (1, 4, 4), resnet_dim=192)
             self.cond_pos_embd = AddBroadcastPosEmbed(
                 shape=frame_cond_shape[:-1], embd_dim=frame_cond_shape[-1]
             )
@@ -115,7 +115,6 @@ class VideoGPT(pl.LightningModule):
             samples = torch.clamp(samples, -0.5, 0.5) + 0.5
 
         return samples # BCTHW in [0, 1]
-
 
     def forward(self, x, targets, cond, decode_step=None, decode_idx=None):
         if self.use_frame_cond:
